@@ -1,0 +1,20 @@
+---
+format: hypermake.v0
+
+name: cpp
+description: C++ components
+
+targets:
+  build-vp-[arch:amd64,armhf]:
+    description: build vision processing daemon
+    watches:
+      - inc
+      - src
+      - CMakeLists.txt
+    env:
+      - MAKE_OPTS
+    cmds:
+      - build-cmake.sh $[arch] cpp libvp.a vpd
+    artifacts:
+      - /out/$[arch]/lib/libvp.a
+      - /out/$[arch]/bin/vpd

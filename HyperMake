@@ -1,0 +1,55 @@
+---
+format: hypermake.v0
+
+name: think
+description: Robotalks brain modules
+
+targets:
+  toolchain:
+    description: stub for custom toolchain
+
+  exec:
+    description: environment for hmake -x
+    after:
+      - toolchain
+
+  root:
+    description: environment for hmake -x with root privilege
+    after:
+      - toolchain
+    user: root
+
+  deps:
+    description: install dependencies
+    after:
+      - 'deps-*'
+
+  generate:
+    description: generate code
+    after:
+      - 'gen-*'
+
+  build:
+    description: build components
+    after:
+      - 'build-*'
+
+  pack:
+    description: package artifacts
+    after:
+      - 'pack-*'
+
+  clean:
+    description: clean intermediate files
+    after:
+      - 'clean-*'
+
+includes:
+  - '**/**/*.hmake'
+
+settings:
+  default-targets: ['build']
+  exec-target: exec
+  exec-shell: /bin/bash
+  docker:
+    image: robotalks/toolchain-prebuilt:stretch-0
