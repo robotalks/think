@@ -12,5 +12,6 @@ namespace vp {
         const BufRef& buf = ctx.in(0)->as<BufRef>();
         auto img = imdecode(Mat(1, buf.len, CV_8UC1, buf.ptr), 1);
         ctx.out(0)->set<Mat>(img);
+        ctx.out(1)->set<ImageSize>(ImageSize(img.cols, img.rows));
     }
 }

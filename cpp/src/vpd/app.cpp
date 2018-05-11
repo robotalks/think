@@ -41,11 +41,11 @@ public:
             unique_ptr<NeuralComputeStick> ncs(new NeuralComputeStick(name));
             unique_ptr<NeuralComputeStick::Graph> model(ncs->loadGraphFile(FLAGS_model));
             unique_ptr<Graph> g(new Graph(name));
-            g->defVars({"input", "id", "pixels", "objects"});
+            g->defVars({"input", "id", "size", "pixels", "objects"});
             g->addOp("imgid", {"input"}, {"id"}, ImageId::Op());
-            g->addOp("decode", {"input"}, {"pixels"}, CvImageDecode::Op());
+            g->addOp("decode", {"input"}, {"pixels", "size"}, CvImageDecode::Op());
             g->addOp("detect", {"pixels"}, {"objects"}, SSDMobileNet::Op(model.get()));
-            g->addOp("publish", {"pixels", "id", "objects"}, {}, DetectBoxesPub::Op(m_mqtt_client.get(), FLAGS_mqtt_topic));
+            g->addOp("publish", {"size", "id", "objects"}, {}, DetectBoxesPub::Op(m_mqtt_client.get(), FLAGS_mqtt_topic));
             m_pipeline.addGraph(g.get());
             m_ncs.push_back(move(ncs));
             m_models.push_back(move(model));

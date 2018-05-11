@@ -1,17 +1,15 @@
-#include <opencv2/core/core.hpp>
-
 #include "vp/operators.h"
 
 namespace vp {
     using namespace std;
 
     void DetectBoxesPub::Op::operator() (Graph::Ctx ctx) {
-        const cv::Mat& m = ctx.in(0)->as<cv::Mat>();
+        const ImageSize& sz = ctx.in(0)->as<ImageSize>();
         const ImageId& id = ctx.in(1)->as<ImageId>();
         const vector<DetectBox>& boxes = ctx.in(2)->as<vector<DetectBox>>();
         char cstr[1024];
         sprintf(cstr, "{\"src\":\"%s\",\"seq\":%lu,\"size\":[%d,%d],\"boxes\":[",
-            id.src.c_str(), id.seq, m.cols, m.rows);
+            id.src.c_str(), id.seq, sz.w, sz.h);
         string str(cstr);
         for (auto& b : boxes) {
             sprintf(cstr, "{\"class\":%d,\"score\":%f,\"rc\":[%d,%d,%d,%d]},",

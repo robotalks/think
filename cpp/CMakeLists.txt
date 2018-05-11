@@ -30,6 +30,7 @@ add_library(vp
     src/vp/ingress/udp.cpp
     src/vp/op/image.cpp
     src/vp/op/detection.cpp
+    src/vp/op/sensitivity.cpp
     src/vp/cv/videocap.cpp
     src/vp/cv/operators.cpp
     src/vp/mqtt/mqtt.cpp
