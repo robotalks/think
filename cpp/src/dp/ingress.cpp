@@ -56,9 +56,21 @@ namespace dp {
         for (auto ingress : m_ingresses) {
             ingress->stop();
         }
+    }
+
+    void ingress::runner::join() {
         for (auto& thread_ptr : m_threads) {
             thread_ptr->join();
         }
         m_threads.clear();
+    }
+
+    void exec_env::build() {
+        for (auto& p : graphs) {
+            dispatcher.add_graph(p.get());
+        }
+        for (auto& p : ingresses) {
+            runner.add(p.get());
+        }
     }
 }

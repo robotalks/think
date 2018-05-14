@@ -37,11 +37,24 @@ namespace dp {
 
             void start(dispatcher*);
             void stop();
+            void join();
 
         private:
             ::std::vector<ingress*> m_ingresses;
             ::std::vector<::std::unique_ptr<::std::thread>> m_threads;
         };
+    };
+
+    struct exec_env {
+        graph_dispatcher dispatcher;
+        ingress::runner runner;
+        ::std::list<::std::unique_ptr<graph>> graphs;
+        ::std::list<::std::unique_ptr<ingress>> ingresses;
+
+        void build();
+
+        void start() { runner.start(&dispatcher); }
+        void stop() { runner.stop(); }
     };
 }
 
