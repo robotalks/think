@@ -1,6 +1,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <glog/logging.h>
 
+#include "dp/graph_def.h"
 #include "dp/ingress/videocap.h"
 
 namespace dp::in {
@@ -50,5 +51,24 @@ namespace dp::in {
             g->var(input_var())->set<Mat>(frame);
         };
         return true;
+    }
+
+    struct factory : public dp::graph_def::ingress_factory {
+        ingress* create_ingress(
+            const string& name,
+            const string& type,
+            const dp::graph_def::params& arg) {
+            int dev_index = 0;
+            auto dev_str = arg.at("dev");
+            if (!dev_str.empty()) {
+                dev_index = atoi(dev_str.c_str());
+            }
+            return new video_capture(dev_index);
+        }
+    };
+
+    void video_capture::register_factory() {
+        static factory _factory;
+        dp::graph_def::ingress_registry::get()->add_factory("dp.videocap", &_factory);
     }
 }

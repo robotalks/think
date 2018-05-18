@@ -4,10 +4,13 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <string.h>
+#include <cstdlib>
+#include <stdexcept>
 
 #include "dp/operators.h"
 #include "dp/types.h"
 #include "dp/ingress/udp.h"
+#include "dp/graph_def.h"
 
 namespace dp::in {
     using namespace std;
@@ -73,5 +76,27 @@ namespace dp::in {
             m_pool.put(idx);
         };
         return true;
+    }
+
+    struct factory : public dp::graph_def::ingress_factory {
+        ingress* create_ingress(
+            const string& name,
+            const string& type,
+            const dp::graph_def::params& arg) {
+            int port = (int)udp::default_port;
+            auto port_str = arg.at("port");
+            if (!port_str.empty()) {
+                port = atoi(port_str.c_str());
+                if (port <= 0 || port > 65535) {
+                    throw invalid_argument("invalid param port: " + port_str);
+                }
+            }
+            return new udp((uint16_t)port);
+        }
+    };
+
+    void udp::register_factory() {
+        static factory _factory;
+        dp::graph_def::ingress_registry::get()->add_factory("dp.udp", &_factory);
     }
 }

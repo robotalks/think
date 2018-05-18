@@ -12,6 +12,8 @@ namespace dp::in {
         udp(uint16_t port = default_port, size_t buf_count = 8);
         virtual ~udp();
 
+        static void register_factory();
+
     protected:
         virtual bool prepare_session(session&, bool nowait);
 

@@ -55,6 +55,11 @@ namespace dp {
 
         void start() { runner.start(&dispatcher); }
         void stop() { runner.stop(); }
+
+        void run() {
+            start();
+            runner.join();
+        }
     };
 }
 

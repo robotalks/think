@@ -35,15 +35,23 @@ add_library(think
     src/dp/op/imageid.cpp
     src/dp/op/decodeimg.cpp
     src/dp/op/saveimage.cpp
+    src/dp/op/detectbox.cpp
     src/dp/op/sensitivity.cpp
+    src/dp/op/factories.cpp
     src/dp/ingress/udp.cpp
     src/dp/ingress/videocap.cpp
     src/mqtt/mqtt.cpp
+    src/mqtt/operators.cpp
+    src/mqtt/factory.cpp
     src/movidius/ncs.cpp
     src/movidius/fp16.cpp
     src/movidius/operators.cpp
     src/movidius/ssd_mobilenet.cpp
+    src/movidius/factory.cpp
 )
+
+add_executable(dpe src/dpe/app.cpp)
+target_link_libraries(dpe think ${LIBS})
 
 add_executable(objdetect src/objdetect/app.cpp)
 target_link_libraries(objdetect think ${LIBS})

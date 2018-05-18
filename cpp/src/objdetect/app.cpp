@@ -60,11 +60,12 @@ public:
             unique_ptr<movidius::compute_stick> stick(new movidius::compute_stick(name));
             unique_ptr<movidius::compute_stick::graph> model(stick->alloc_graph_from_file(FLAGS_model));
             unique_ptr<graph> g(new graph(name));
-            g->def_vars({"input", "id", "size", "pixels", "objects"});
+            g->def_vars({"input", "id", "size", "pixels", "objects", "result"});
             g->add_op("imgid", {"input"}, {"id"}, op::image_id());
             g->add_op("decode", {"input"}, {"pixels", "size"}, op::decode_image());
             g->add_op("detect", {"pixels"}, {"objects"}, movidius::op::ssd_mobilenet(model.get()));
-            g->add_op("publish", {"size", "id", "objects"}, {}, pub_op(m_mqtt_client.get()));
+            g->add_op("json", {"size", "id", "objects"}, {"result"}, op::detect_boxes_json());
+            g->add_op("publish", {"result"}, {}, pub_op(m_mqtt_client.get()));
             m_dispatcher.add_graph(g.get());
             m_ncs.push_back(move(stick));
             m_models.push_back(move(model));

@@ -33,14 +33,28 @@ namespace movidius {
     }
 
     compute_stick::compute_stick(const string& name)
-    : m_handle(nullptr) {
+    : m_name(name), m_handle(nullptr) {
         mvncStatus r = mvncOpenDevice(name.c_str(), &m_handle);
         check_mvnc_status(r);
+    }
+
+    compute_stick::compute_stick(compute_stick&& s) 
+    : m_name(move(s.m_name)), m_handle(s.m_handle) {
+        s.m_handle = nullptr;
     }
 
     compute_stick::~compute_stick() {
         if (m_handle != nullptr)
             mvncCloseDevice(m_handle);
+    }
+
+    compute_stick& compute_stick::operator = (compute_stick&& s) {
+        if (m_handle != nullptr)
+            mvncCloseDevice(m_handle);
+        m_name = move(s.m_name);
+        m_handle = s.m_handle;
+        s.m_handle = nullptr;
+        return *this;
     }
 
     compute_stick::graph* compute_stick::alloc_graph(const void *graph_data, size_t len) {
@@ -80,5 +94,52 @@ namespace movidius {
         unsigned int outlen = 0;
         check_mvnc_status(mvncGetResult(m_handle, &output, &outlen, &opaque));
         done(output, outlen);
+    }
+
+    device_pool::device_pool() {
+    }
+
+    size_t device_pool::populate() {
+        auto names = compute_stick::devices();
+        for (auto& name : names) {
+            device d(name);
+            m_names.insert(make_pair(name, m_devices.size()));
+            m_devices.push_back(move(d));
+        }
+        return m_devices.size();
+    }
+
+    compute_stick* device_pool::alloc(const string &name) {
+        if (name.empty()) {
+            for (auto& d : m_devices) {
+                if (d.refs == 0) {
+                    d.refs ++;
+                    return d.stick.get();
+                }
+            }
+            return nullptr;
+        }
+        auto it = m_names.find(name);
+        if (it == m_names.end()) return nullptr;
+        device& d = m_devices[it->second];
+        if (d.refs == 0) {
+            d.refs ++;
+            return d.stick.get();
+        }
+        return nullptr;
+    }
+
+    void device_pool::release(compute_stick* stick) {
+        for (auto& d : m_devices) {
+            if (d.stick.get() == stick) {
+                d.refs --;
+                break;
+            }
+        }
+    }
+
+    device_pool::device::device(const string& name)
+    : refs(0) {
+        stick.reset(new compute_stick(name));
     }
 }

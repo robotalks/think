@@ -37,6 +37,10 @@ namespace dp::op {
         graph::op_func operator()() const { return *const_cast<save_image*>(this); }
     };
 
+    struct detect_boxes_json {
+        void operator() (graph::ctx);
+    };
+
     struct sensitivity {
         struct mat : public ::std::vector<float> {
             // dimensions:
@@ -61,6 +65,8 @@ namespace dp::op {
         // factory
         graph::op_func operator() () const { return *const_cast<sensitivity*>(this); }
     };
+
+    void register_factories();
 }
 
 #endif

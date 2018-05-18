@@ -54,6 +54,12 @@ namespace dp {
         return it == m_factories.end() ? nullptr : it->second;
     }
 
+    static graph_def::op_registry _op_registry;
+    static graph_def::ingress_registry _ingress_registry;
+
+    graph_def::op_registry* graph_def::op_registry::get() { return &_op_registry; }
+    graph_def::ingress_registry* graph_def::ingress_registry::get() { return &_ingress_registry; }
+
     string graph_def::location::prefix() const {
         char str[256];
         sprintf(str, "%lu:L%luC%lu:", off, line+1, col+1);
@@ -69,12 +75,20 @@ namespace dp {
         return move(p);
     }
 
-    graph_def::graph_def() {
+    graph_def::graph_def()
+    : m_refs(nullptr) {
+        use_ops(op_registry::get());
+        use_ingresses(ingress_registry::get());
     }
 
-    graph_def::graph_def(op_registry *ops, ingress_registry *ingresses) {
+    graph_def::graph_def(op_registry *ops, ingress_registry *ingresses)
+    : m_refs(nullptr) {
         use_ops(ops);
         use_ingresses(ingresses);
+    }
+
+    graph_def::~graph_def() {
+        if (m_refs) delete m_refs;
     }
 
     graph_def& graph_def::use_ops(op_registry *ops) {
@@ -176,14 +190,19 @@ namespace dp {
     }
 
     void graph_def::build_xref(graph_def::xref *xr) {
-        unique_ptr<xref> r(xr);
-        r->build_refs();
-        if (!r->graphs().empty()) {
-            m_selected_graph = r->graphs().front().name();
+        try {
+            xr->build_refs();
+        } catch (const exception&) {
+            delete xr;
+            throw;
+        }
+        if (!xr->graphs().empty()) {
+            m_selected_graph = xr->graphs().front().name();
         } else {
             m_selected_graph.clear();
         }
-        m_refs = move(r);
+        if (m_refs) delete m_refs;
+        m_refs = xr;
     }
 
     graph_def::xref::xref(ast&& a,

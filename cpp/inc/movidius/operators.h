@@ -31,6 +31,8 @@ namespace movidius::op {
 
         static ::cv::Mat crop(const ::cv::Mat&, int cx, int cy);
     };
+
+    void register_factories();
 }
 
 #endif

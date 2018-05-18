@@ -42,6 +42,8 @@ namespace dp {
             void add_factory(const ::std::string& name, op_factory*);
             op_factory* get_factory(const ::std::string& name) const;
 
+            static op_registry* get();
+
         private:
             ::std::unordered_map<::std::string, op_factory*> m_factories;
         };
@@ -58,6 +60,8 @@ namespace dp {
 
             void add_factory(const ::std::string& name, ingress_factory*);
             ingress_factory* get_factory(const ::std::string& name) const;
+
+            static ingress_registry* get();
 
         private:
             ::std::unordered_map<::std::string, ingress_factory*> m_factories;
@@ -90,7 +94,7 @@ namespace dp {
         graph_def();
         graph_def(op_registry *ops, ingress_registry *ins);
 
-        virtual ~graph_def() { }
+        virtual ~graph_def();
 
         graph_def& use_ops(op_registry *ops);
         graph_def& use_ingresses(ingress_registry *ins);
@@ -116,7 +120,7 @@ namespace dp {
         op_registry* m_ops;
         ingress_registry* m_ins;
         class xref;
-        ::std::unique_ptr<xref> m_refs;
+        xref *m_refs;
         ::std::string m_selected_graph;
 
         void build_xref(xref*);

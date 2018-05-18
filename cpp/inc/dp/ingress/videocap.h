@@ -23,6 +23,8 @@ namespace dp::in {
 
         void show_to(const ::std::string& name) { m_show_name = name; }
 
+        static void register_factory();
+
     protected:
         virtual bool prepare_session(session&, bool);
 
