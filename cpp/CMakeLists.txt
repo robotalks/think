@@ -23,7 +23,6 @@ set(LIBS
 add_library(think
     src/dp/graph.cpp
     src/dp/graph_var.cpp
-    src/dp/graph_builder.cpp
     src/dp/graph_def.cpp
     src/dp/graph_def_tokenizer.cpp
     src/dp/graph_def_parser.cpp

@@ -11,20 +11,14 @@ namespace dp::op {
         graph::op_func fn;
         wrap(const graph::op_func& f) : fn(f) { }
         void operator() (graph::ctx ctx) { fn(ctx); }
-        // factory
-        graph::op_func operator()() const { return fn; }
     };
 
     struct image_id {
         void operator() (graph::ctx);
-        // factory
-        graph::op_func operator()() const { return *const_cast<image_id*>(this); }
     };
 
     struct decode_image {
         void operator() (graph::ctx);
-        // factory
-        graph::op_func operator()() const { return *const_cast<decode_image*>(this); }
     };
 
     struct save_image {
@@ -33,8 +27,6 @@ namespace dp::op {
             const ::std::string& _suffix = ".jpg")
         : prefix(_prefix), suffix(_suffix) { }
         void operator() (graph::ctx);
-        // factory
-        graph::op_func operator()() const { return *const_cast<save_image*>(this); }
     };
 
     struct detect_boxes_json {
@@ -62,8 +54,6 @@ namespace dp::op {
         ::std::vector<mat> categories;
         sensitivity(const ::std::vector<mat>& _cats) : categories(_cats) {}
         void operator() (graph::ctx);
-        // factory
-        graph::op_func operator() () const { return *const_cast<sensitivity*>(this); }
     };
 
     void register_factories();

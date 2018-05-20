@@ -154,39 +154,6 @@ namespace dp {
         ::std::unordered_map<::std::string, ::std::unique_ptr<op> > m_ops;
         ::std::unordered_map<::std::string, ::std::string> m_out_vars;
         ::std::unordered_map<::std::string, ::std::list<op*>> m_var_deps;
-
-    public:
-        using op_factory_func = ::std::function<op_func(void)>;
-
-        class builder {
-        public:
-            builder() {}
-            virtual ~builder() { }
-
-            builder& var(const ::std::string& name);
-            builder& vars(const ::std::vector<::std::string>& names);
-            builder& op(const ::std::string& name,
-                const ::std::vector<::std::string>& inputs,
-                const ::std::vector<::std::string>& outputs,
-                const op_factory_func& factory);
-
-            graph* build(const ::std::string& name = ::std::string()) const;
-
-        protected:
-            virtual graph* new_graph(const ::std::string& name) const { return new graph(name); }
-
-        private:
-            struct op_def {
-                ::std::string name;
-                ::std::vector<::std::string> inputs;
-                ::std::vector<::std::string> outputs;
-                op_factory_func factory;
-            };
-
-            ::std::unordered_set<::std::string> m_vars;
-            ::std::unordered_map<::std::string, op_def> m_ops;
-            ::std::unordered_map<::std::string, ::std::string> m_out_vars;
-        };
     };
 }
 

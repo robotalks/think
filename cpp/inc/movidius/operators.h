@@ -14,16 +14,12 @@ namespace movidius::op {
         compute_stick::graph *graph;
         exec(compute_stick::graph *g) : graph(g) { }
         void operator() (::dp::graph::ctx);
-        // factory
-        ::dp::graph::op_func operator()() const { return *const_cast<exec*>(this); }
     };
 
     struct crop_fp16 {
         int cx, cy;
         crop_fp16(int _cx, int _cy) : cx(_cx), cy(_cy) { }
         void operator() (::dp::graph::ctx);
-        // factory
-        ::dp::graph::op_func operator()() const { return crop_fp16(cx, cy); }
 
         ::cv::Mat crop(const ::cv::Mat& m) {
             return crop(m, cx, cy);
