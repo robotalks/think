@@ -17,7 +17,6 @@ namespace dp {
         if (!pr.second) throw invalid_argument("variable already defined: " + name);
         auto v = new variable(name);
         pr.first->second.reset(v);
-        m_var_deps.insert(make_pair(name, list<op*>()));
         return v;
     }
 
@@ -36,7 +35,6 @@ namespace dp {
         op *o = new op(name, fn);
         for (auto& n : inputs) {
             o->params.push_back(var(n));
-            m_var_deps.find(n)->second.push_back(o);
         }
         for (auto& n : outputs) {
             auto pr = m_out_vars.insert(make_pair(n, name));
@@ -64,7 +62,7 @@ namespace dp {
             pr.second->clear();
         }
         for (auto& pr : m_ops) {
-            pr.second->set_varn = 0;
+            pr.second->activated = false;
         }
     }
 
@@ -86,18 +84,12 @@ namespace dp {
             }));
         }
 
-        for (auto& pr : m_vars) {
-            if (pr.second->is_set()) {
-                auto it = m_var_deps.find(pr.first);
-                if (it != m_var_deps.end()) {
-                    for (auto o : it->second) {
-                        o->set_varn ++;
-                        if (o->activated()) {
-                            count ++;
-                            runq.put(o);
-                        }
-                    }
-                }
+        for (auto& pr : m_ops) {
+            op* o = pr.second.get();
+            if (!o->activated && o->ready()) {
+                o->activated = true;
+                count ++;
+                runq.put(o);
             }
         }
 
@@ -109,13 +101,13 @@ namespace dp {
             for (auto v : o->results) {
                 if (!v->is_set())
                     throw logic_error("op " + o->name + " completes without set output " + v->name());
-                const list<op*>& deps = m_var_deps[v->name()];
-                for (auto d : deps) {
-                    d->set_varn ++;
-                    if (d->activated()) {
-                        count ++;
-                        runq.put(d);
-                    }
+            }
+            for (auto& pr : m_ops) {
+                o = pr.second.get();
+                if (!o->activated && o->ready()) {
+                    o->activated = true;
+                    count ++;
+                    runq.put(o);
                 }
             }
         }

@@ -138,13 +138,18 @@ namespace dp {
             op_func fn;
             ::std::vector<variable*> params;
             ::std::vector<variable*> results;
-
-            size_t set_varn;
+            bool activated;
 
             op(const ::std::string& _name, const op_func& _fn)
-            : name(_name), fn(_fn), set_varn(0) { }
+            : name(_name), fn(_fn), activated(false) { }
 
-            bool activated() const { return set_varn == params.size(); }
+            bool ready() const {
+                for (auto& v : params) {
+                    if (!v->is_set()) return false;
+                }
+                return true;
+            }
+
             void run(::std::function<void()>);
         };
 
@@ -153,7 +158,6 @@ namespace dp {
         ::std::unordered_map<::std::string, ::std::unique_ptr<variable> > m_vars;
         ::std::unordered_map<::std::string, ::std::unique_ptr<op> > m_ops;
         ::std::unordered_map<::std::string, ::std::string> m_out_vars;
-        ::std::unordered_map<::std::string, ::std::list<op*>> m_var_deps;
     };
 }
 

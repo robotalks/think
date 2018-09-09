@@ -15,8 +15,6 @@ namespace movidius::op {
         compute_stick::graph *graph;
         ssd_mobilenet(compute_stick::graph *g) : graph(g) { }
         void operator() (::dp::graph::ctx);
-        // factory
-        ::dp::graph::op_func operator()() const { return *const_cast<ssd_mobilenet*>(this); }
 
         static ::std::vector<::dp::detect_box> to_detect_boxes(
             const void* out, size_t len, const ::dp::image_size& orig);

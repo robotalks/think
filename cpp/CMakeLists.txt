@@ -10,14 +10,21 @@ include_directories(
 )
 
 set(LIBS
+    ${OpenCV_LIBS}
     glog
     gflags
-    ${OpenCV_LIBS}
     mosquitto
     ssl
     z
     mvnc
     pthread
+)
+
+set(CPPNETLIBS
+    cppnetlib-server-parsers
+    cppnetlib-uri
+    boost_system
+    boost_thread
 )
 
 add_library(think
@@ -53,7 +60,7 @@ add_executable(dpe src/dpe/app.cpp)
 target_link_libraries(dpe think ${LIBS})
 
 add_executable(objdetect src/objdetect/app.cpp)
-target_link_libraries(objdetect think ${LIBS})
+target_link_libraries(objdetect think ${CPPNETLIBS} ${LIBS})
 
 add_executable(graph_def_test
     src/dp/graph_def_tokenizer_unittest.cpp
