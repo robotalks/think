@@ -14,7 +14,7 @@ targets:
     env:
       - MAKE_OPTS
     cmds:
-      - build-cmake.sh $[arch] cpp libthink.a dpe objdetect
+      - build-cmake.sh $[arch] cpp libthink.a dpe objdetect viewer
     artifacts:
       - /out/$[arch]/lib/libthink.a
       - /out/$[arch]/bin/objdetect

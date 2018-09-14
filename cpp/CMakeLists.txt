@@ -62,6 +62,9 @@ target_link_libraries(dpe think ${LIBS})
 add_executable(objdetect src/objdetect/app.cpp)
 target_link_libraries(objdetect think ${CPPNETLIBS} ${LIBS})
 
+add_executable(viewer src/viewer/app.cpp)
+target_link_libraries(viewer ${LIBS})
+
 add_executable(graph_def_test
     src/dp/graph_def_tokenizer_unittest.cpp
     src/dp/graph_def_parser_unittest.cpp
