@@ -20,12 +20,16 @@
 #include "dp/operators.h"
 #include "dp/ingress/udp.h"
 #include "dp/ingress/videocap.h"
+#include "dp/util/error.h"
 #include "mqtt/mqtt.h"
 #include "movidius/ncs.h"
 #include "movidius/ssd_mobilenet.h"
 
 using namespace std;
 using namespace dp;
+
+static constexpr int http_port = 2052;
+static constexpr int cast_port = 2053;
 
 DEFINE_int32(port, in::udp::default_port, "listening port");
 DEFINE_string(mqtt_host, "127.0.0.1", "MQTT server address");
@@ -34,8 +38,8 @@ DEFINE_string(mqtt_client_id, "", "MQTT client ID");
 DEFINE_string(mqtt_topic, "", "MQTT topic");
 DEFINE_string(model, "graph", "Model name");
 DEFINE_string(http_addr, "", "image server listening address");
-DEFINE_int32(http_port, 2052, "image server listening port");
-DEFINE_int32(stream_port, 2053, "TCP streaming port");
+DEFINE_int32(http_port, http_port, "image server listening port");
+DEFINE_int32(stream_port, cast_port, "TCP streaming port");
 
 struct pub_op {
     mqtt::client *client;
@@ -67,12 +71,6 @@ static string sz2str(size_t sz) {
     char str[64];
     sprintf(str, "%u", sz);
     return str;
-}
-
-static ::std::string error_msg(const string& prefix) {
-    char buf[32];
-    sprintf(buf, ": %d", errno);
-    return prefix + buf;
 }
 
 struct image_buffer {
@@ -143,12 +141,6 @@ public:
             conn->write("Path not supported");
             return;
         }
-        if (request.method == "PUT") {
-            if (uri.path() == "/udp") {
-                handle_add_udp_cast(conn, request.body);
-                return;
-            }
-        }
         conn->set_status(http_server_t::connection::not_supported);
         conn->set_headers(boost::make_iterator_range(error_headers, 
             error_headers+sizeof(error_headers)/sizeof(error_headers[0])));
@@ -201,30 +193,19 @@ private:
         conn->set_status(http_server_t::connection::not_supported);
         conn->write("Not implemented");
     }
-
-    void handle_add_udp_cast(http_server_t::connection_ptr conn, const string& addr) {
-        // TODO
-        static http_server_t::response_header common_headers[] = {
-            {"Content-length", "0"},
-        };
-        conn->set_status(http_server_t::connection::no_content);
-        conn->set_headers(boost::make_iterator_range(common_headers, 
-            common_headers+sizeof(common_headers)/sizeof(common_headers[0])));
-        conn->write("");
-    }
 };
 
-class streamer {
+class socket_listener {
 public:
-    streamer(int port = 2053) : m_socket(-1) {
+    socket_listener(int type, int port) : m_socket(-1) {
         try {
-            m_socket = socket(PF_INET, SOCK_STREAM, 0);
+            m_socket = socket(PF_INET, type, 0);
             if (m_socket < 0) {
-                throw runtime_error(error_msg("socket"));
+                throw runtime_error(errmsg("socket"));
             }
             long en = 1;
             if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &en, sizeof(en)) < 0) {
-                throw runtime_error(error_msg("setsockopt"));
+                throw runtime_error(errmsg("setsockopt"));
             }
 
             sockaddr_in sa;
@@ -233,11 +214,13 @@ public:
             sa.sin_port = htons((u_short)port);
             sa.sin_addr.s_addr = INADDR_ANY;
             if (bind(m_socket, (sockaddr*)&sa, sizeof(sa)) < 0) {
-                throw runtime_error(error_msg("socket bind"));
+                throw runtime_error(errmsg("socket bind"));
             }
 
+            if (type != SOCK_STREAM) return;
+
             if (listen(m_socket, SOMAXCONN) < 0) {
-                throw runtime_error(error_msg("listen"));
+                throw runtime_error(errmsg("listen"));
             }
         } catch (runtime_error&) {
             if (m_socket >= 0) {
@@ -247,19 +230,31 @@ public:
         }
     }
 
-    ~streamer() {
+    virtual ~socket_listener() {
         if (m_socket >= 0) {
             close(m_socket);
         }
+    }
+
+    int socket_fd() const { return m_socket; }
+
+private:
+    int m_socket;
+};
+
+class streamer : public socket_listener {
+public:
+    streamer(int port = cast_port)
+    : socket_listener(SOCK_STREAM, port) {
     }
 
     void run(const image_handler* images) {
         while (true) {
             sockaddr_in sa;
             socklen_t salen = sizeof(sa);
-            int conn = accept(m_socket, (sockaddr*)&sa, &salen);
+            int conn = accept(socket_fd(), (sockaddr*)&sa, &salen);
             if (conn < 0) {
-                LOG(ERROR) << error_msg("accept");
+                LOG(ERROR) << errmsg("accept");
                 break;
             }
             thread client([this, conn, images] { stream_to(conn, images); });
@@ -268,8 +263,6 @@ public:
     }
 
 private:
-    int m_socket;
-
     void stream_to(int conn, const image_handler* images) {
         const image_buffer* buf;
         while ((buf = images->wait()) != nullptr) {
@@ -279,11 +272,120 @@ private:
                 r = send(conn, buf->ptr(), buf->size, MSG_NOSIGNAL);
             }
             if (r < 0) {
-                LOG(ERROR) << error_msg("send");
+                LOG(ERROR) << errmsg("send");
                 break;
             }
         }
         close(conn);
+    }
+};
+
+class udp_caster : public socket_listener {
+public:
+    udp_caster(int port = cast_port)
+    : socket_listener(SOCK_DGRAM, port) {
+    }
+
+    void run(const image_handler* images) {
+        thread listener_thread([this] { run_listener(); });
+        run_caster(images);
+        listener_thread.join();
+    }
+
+private:
+    struct subscriber {
+        sockaddr_in addr;
+        int failures;
+
+        subscriber(const sockaddr_in& sa) : failures(0) {
+            memcpy(&addr, &sa, sizeof(addr));
+        }
+    
+        bool same(const sockaddr_in& sa) const {
+            return addr.sin_port == sa.sin_port && addr.sin_addr.s_addr == sa.sin_addr.s_addr;
+        }
+
+        string str() const {
+            string s(inet_ntoa(addr.sin_addr));
+            s += ":" + sz2str(ntohs(addr.sin_port));
+            return s;
+        }
+
+        static function<bool(const subscriber&)> if_same(sockaddr_in sa) {
+            return [sa] (const subscriber& sub) -> bool {
+                return sub.same(sa);
+            };
+        }
+    };
+
+    list<subscriber> m_subscribers;
+    mutex m_lock;
+
+    static constexpr int max_failures = 5;
+
+    void run_listener() {
+        char buf[4];
+        while (true) {
+            sockaddr_in sa;
+            socklen_t salen = sizeof(sa);            
+            int r = recvfrom(socket_fd(), buf, sizeof(buf), 0, (sockaddr*)&sa, &salen);
+            if (r < 0) {
+                LOG(ERROR) << errmsg("recvfrom");
+                break;
+            }
+            if (r == 0) continue;
+
+            switch (buf[0]) {
+            case '+':
+                add_subscriber(sa);
+                break;
+            case '-':
+                del_subscriber(sa);
+                break;
+            }
+        }
+    }
+
+    void run_caster(const image_handler* images) {
+        const image_buffer* buf;
+        while ((buf = images->wait()) != nullptr) {
+            uint16_t sz = (uint16_t)buf->size;
+            cast(buf);
+        }
+    }
+
+    void cast(const image_buffer* buf) {
+        unique_lock<mutex> lock(m_lock);
+        list<subscriber>::iterator it = m_subscribers.begin();
+        while (it != m_subscribers.end()) {
+            auto cur = it;
+            it ++;
+            int r = sendto(socket_fd(), buf->ptr(), buf->size, MSG_NOSIGNAL, 
+                (sockaddr*)&cur->addr, sizeof(cur->addr));
+            if (r < 0) {
+                LOG(ERROR) << cur->str() << ": " << errmsg("sendto");
+                cur->failures ++;
+                if (cur->failures > max_failures) {
+                    LOG(WARNING) << "remove " << cur->str() << " due to too many failures";
+                    m_subscribers.erase(cur);
+                }
+            }
+        }
+    }
+
+    void add_subscriber(const sockaddr_in& sa) {
+        unique_lock<mutex> lock(m_lock);
+        list<subscriber>::iterator it = find_if(m_subscribers.begin(), m_subscribers.end(), subscriber::if_same(sa));
+        if (it != m_subscribers.end()) {
+            it->failures = 0;
+            return;
+        }
+        m_subscribers.push_back(subscriber(sa));
+    }
+
+    void del_subscriber(const sockaddr_in& sa) {
+        unique_lock<mutex> lock(m_lock);
+        m_subscribers.remove_if(subscriber::if_same(sa));
     }
 };
 
@@ -336,8 +438,10 @@ public:
         in::udp udp((uint16_t)FLAGS_port);
         thread httpsrv_thread([this] { m_httpsrv->run(); });
         thread streamer_thread([this] { run_streamer(); });
+        thread caster_thread([this] { run_caster(); });
         udp.run(&m_dispatcher);
         httpsrv_thread.join();
+        caster_thread.join();
         streamer_thread.join();
     }
 
@@ -356,6 +460,14 @@ private:
         }
         streamer strm(FLAGS_stream_port);
         strm.run(&m_imghandler);
+    }
+
+    void run_caster() {
+        if (FLAGS_stream_port == 0) {
+            return;
+        }
+        udp_caster caster(FLAGS_stream_port);
+        caster.run(&m_imghandler);
     }
 };
 

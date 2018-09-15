@@ -11,15 +11,10 @@
 #include "dp/types.h"
 #include "dp/ingress/udp.h"
 #include "dp/graph_def.h"
+#include "dp/util/error.h"
 
 namespace dp::in {
     using namespace std;
-
-    static ::std::string error_msg(const string& prefix) {
-        char buf[32];
-        sprintf(buf, ": %d", errno);
-        return prefix + buf;
-    }
 
     static constexpr size_t buf_size = 0x10000;
 
@@ -27,7 +22,7 @@ namespace dp::in {
     : m_pool(buf_count) {
         m_socket = socket(PF_INET, SOCK_DGRAM, 0);
         if (m_socket < 0) {
-            throw runtime_error(error_msg("socket error"));
+            throw runtime_error(errmsg("socket"));
         }
         int en = 1;
         setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &en, sizeof(en));
@@ -37,7 +32,7 @@ namespace dp::in {
         sa.sin_port = htons(port);
         sa.sin_addr.s_addr = INADDR_ANY;
         if (bind(m_socket, (sockaddr*)&sa, sizeof(sa)) < 0) {
-            throw runtime_error(error_msg("bind error"));
+            throw runtime_error(errmsg("bind"));
         }
 
         m_bufs = new char[buf_size*buf_count];

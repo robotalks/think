@@ -37,6 +37,7 @@ add_library(think
     src/dp/dispatch.cpp
     src/dp/ingress.cpp
     src/dp/imageid.cpp
+    src/dp/util/error.cpp
     src/dp/util/pool.cpp
     src/dp/op/imageid.cpp
     src/dp/op/decodeimg.cpp
@@ -46,6 +47,7 @@ add_library(think
     src/dp/op/factories.cpp
     src/dp/ingress/udp.cpp
     src/dp/ingress/videocap.cpp
+    src/dp/fx/recv.cpp
     src/mqtt/mqtt.cpp
     src/mqtt/operators.cpp
     src/mqtt/factory.cpp
@@ -63,7 +65,7 @@ add_executable(objdetect src/objdetect/app.cpp)
 target_link_libraries(objdetect think ${CPPNETLIBS} ${LIBS})
 
 add_executable(viewer src/viewer/app.cpp)
-target_link_libraries(viewer ${LIBS})
+target_link_libraries(viewer think ${LIBS})
 
 add_executable(graph_def_test
     src/dp/graph_def_tokenizer_unittest.cpp
